@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet"
+          type="text/css">
+    <link href="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/quasar.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div id="app">
+
+
+    <q-layout view="hHh lpR fFf">
+
+        <q-header elevated class="bg-primary text-white">
+            <q-toolbar>
+                <q-btn href="/">Мои совещания</q-btn>
+                <q-btn href="/new-meeting">Новое совещание</q-btn>
+                <q-space></q-space>
+                <q-btn flat round dense>{{userName + "  "}}</q-btn>
+
+                <q-btn @click="logout">Выйти</q-btn>
+
+            </q-toolbar>
+        </q-header>
+
+        <q-page-container>
+            <div class="q-pa-md">
+                <div class="q-gutter-y-md">
+                    <q-card>
+                        <q-tabs
+                                v-model="tab"
+                                dense
+                                class="text-grey"
+                                active-color="primary"
+                                indicator-color="primary"
+                                align="justify"
+                                narrow-indicator
+                        >
+                            <q-tab name="current" label="Текущие"></q-tab>
+                            <q-tab name="new" label="Будущие"></q-tab>
+                            <q-tab name="old" label="Прошедшие"></q-tab>
+                        </q-tabs>
+
+                        <q-separator></q-separator>
+
+                        <q-tab-panels v-model="tab" animated>
+                            <q-tab-panel name="current">
+                                <div class="q-pa-md">
+                                    <q-table
+                                            flat bordered
+                                            :rows="currentMeetings"
+                                            :columns="columns"
+                                            row-key="name"
+                                    >
+                                        <template v-slot:body="props">
+                                            <q-tr :props="props" >
+                                                <q-td key="topic" :props="props">
+                                                    {{ props.row.topic }}
+                                                </q-td>
+                                                <q-td key="creator" :props="props">
+                                                    {{ props.row.creator.firstName + props.row.creator.lastName }}
+                                                </q-td>
+                                                <q-td style="white-space: pre-wrap;" key="description" :props="props">
+                                                    {{ props.row.description }}
+                                                </q-td>
+                                                <q-td key="startTime" :props="props">
+                                                    {{ formatDate (props.row.startTime) }}
+                                                </q-td>
+                                                <q-td key="endTime" :props="props">
+                                                    {{ formatDate(props.row.endTime) }}
+                                                </q-td>
+                                                <q-td style="white-space: pre-wrap;" key="participants" :props="props">
+                                                    {{ formatUsers(props.row.participants) }}
+                                                </q-td>
+                                                <q-td key="ref" :props="props">
+                                                    <a v-bind:href="'/join/'+ props.row.id">Присоединиться</a>
+                                                </q-td>
+                                            </q-tr>
+                                        </template>
+                                    </q-table>
+                                </div>
+                            </q-tab-panel>
+
+                            <q-tab-panel name="new">
+                                <div class="q-pa-md">
+                                    <q-table
+                                            flat bordered
+                                            :rows="newMeetings"
+                                            :columns="columns"
+                                            row-key="name"
+                                    >
+                                        <template v-slot:body="props">
+                                            <q-tr :props="props" >
+                                                <q-td key="topic" :props="props">
+                                                    {{ props.row.topic }}
+                                                </q-td>
+                                                <q-td key="creator" :props="props">
+                                                    {{ props.row.creator.firstName + props.row.creator.lastName }}
+                                                </q-td>
+                                                <q-td style="white-space: pre-wrap;" key="description" :props="props">
+                                                    {{ props.row.description }}
+                                                </q-td>
+                                                <q-td key="startTime" :props="props">
+                                                    {{ formatDate (props.row.startTime) }}
+                                                </q-td>
+                                                <q-td key="endTime" :props="props">
+                                                    {{ formatDate(props.row.endTime) }}
+                                                </q-td>
+                                                <q-td style="white-space: pre-wrap;" key="participants" :props="props">
+                                                    {{ formatUsers(props.row.participants) }}
+                                                </q-td>
+                                                <q-td key="ref" :props="props">
+                                                    <a v-bind:href="'/join/'+ props.row.id">Присоединиться</a>
+                                                </q-td>
+                                            </q-tr>
+                                        </template>
+                                    </q-table>
+                                </div>
+                            </q-tab-panel>
+
+                            <q-tab-panel name="old">
+                                <div class="q-pa-md">
+                                    <q-table
+                                            flat bordered
+                                            :rows="oldMeetings"
+                                            :columns="columns"
+                                            row-key="name"
+                                    >
+                                        <template v-slot:body="props">
+                                            <q-tr :props="props" >
+                                                <q-td key="topic" :props="props">
+                                                    {{ props.row.topic }}
+                                                </q-td>
+                                                <q-td key="creator" :props="props">
+                                                    {{ props.row.creator.firstName + props.row.creator.lastName }}
+                                                </q-td>
+                                                <q-td style="white-space: pre-wrap;" key="description" :props="props">
+                                                    {{ props.row.description }}
+                                                </q-td>
+                                                <q-td key="startTime" :props="props">
+                                                    {{ formatDate (props.row.startTime) }}
+                                                </q-td>
+                                                <q-td key="endTime" :props="props">
+                                                    {{ formatDate(props.row.endTime) }}
+                                                </q-td>
+                                                <q-td style="white-space: pre-wrap;" key="participants" :props="props">
+                                                    {{ formatUsers(props.row.participants) }}
+                                                </q-td>
+                                                <q-td key="ref" :props="props">
+                                                    <a v-bind:href="'/join/'+ props.row.id">Присоединиться</a>
+                                                </q-td>
+                                            </q-tr>
+                                        </template>
+                                    </q-table>
+                                </div>
+                            </q-tab-panel>
+                        </q-tab-panels>
+                    </q-card>
+                    <div class="q-pa-md">
+
+                    </div>
+
+
+                </div>
+            </div>
+        </q-page-container>
+
+    </q-layout>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/quasar.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/lang/ru.umd.prod.js"></script>
+
+
+<script>
+
+
+
+    const columns = [
+        {name: 'topic', label: 'Тема', field: 'topic', sortable: false},
+        {name: 'creator', align: 'center', label: 'Создатель', field: 'creator', sortable: false},
+        {name: 'description', label: 'Описание', field: 'description', sortable: false},
+        {name: 'startTime', label: 'Начало', field: 'startTime'},
+        {name: 'endTime', label: 'Конец', field: 'endTime'},
+        {name: 'participants', label: 'Участники', field: 'participants'},
+        {name: 'ref', label: 'Ссылка', field: 'id'}
+    ]
+
+
+    const app = Vue.createApp({
+        data() {
+            return {
+                count: 0,
+                userName: "",
+                tab: "current",
+                columns: columns,
+                oldMeetings : [],
+                newMeetings : [],
+                currentMeetings : [],
+                rows1: []
+            }
+        },
+        methods: {
+            increment() {
+                this.count++
+            },
+            getUserInfo() {
+                var this1 = this
+                fetch("/user")
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Network response was not ok");
+                        }
+
+                        return response.json();
+                    })
+                    .then((data) => {
+                        this1.userName = data["firstName"] + " " + data["lastName"]
+                    })
+                    .catch((error) => console.error("Fetch error:", error));
+            },
+            logout() {
+                location.href = "/logout"
+            },
+            getMeetingsInfo() {
+                var this1 = this
+                fetch("/meeting/my")
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Network response was not ok");
+                        }
+
+                        return response.json();
+                    })
+                    .then((data) => {
+                        console.log(data)
+                        this1.newMeetings = data["future"]
+                        this1.oldMeetings = data["old"]
+                        this1.currentMeetings = data["current"]
+                    })
+                    .catch((error) => console.error("Fetch error:", error));
+            },
+            formatDate(s) {
+                let fff = new Date(s);
+                let options = {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric' ,
+                    hour: "numeric",
+                    minute: "numeric"};
+                return fff.toLocaleDateString("ru-RU", options)
+            },
+            formatUsers(usersJson){
+                let answer = ""
+                for (let i = 0; i < usersJson.length; i++) {
+                    answer += usersJson[i].firstName + " " + usersJson[i].lastName + "\n"
+                }
+
+                console.log(usersJson)
+                return answer
+            }
+        },
+        mounted() {
+            this.getUserInfo()
+            this.getMeetingsInfo()
+        }
+    })
+    app.use(Quasar);
+    Quasar.Lang.set(Quasar.Lang.ru)
+    app.mount('#app')
+</script>
+
+</body>
+</html>

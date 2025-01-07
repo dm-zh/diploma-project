@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet"
+          type="text/css">
+    <link href="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/quasar.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div id="app">
+
+
+    <q-layout view="hHh lpR fFf">
+
+        <q-header elevated class="bg-primary text-white">
+            <q-toolbar>
+                <q-btn href="/">Мои совещания</q-btn>
+                <q-btn href="/new-meeting">Новое совещание</q-btn>
+                <q-space></q-space>
+                <q-btn flat round dense>{{userName + "  "}}</q-btn>
+
+                <q-btn @click="logout">Выйти</q-btn>
+
+            </q-toolbar>
+        </q-header>
+
+        <q-page-container>
+            <div class="q-pa-md">
+                <q-form
+                        @submit="onSubmit"
+                        class="q-gutter-md"
+                >
+                    <div class="q-gutter-y-md column" style="max-width: 500px">
+
+                        <q-input standout v-model="topic" label="Название"/>
+
+                    </div>
+                    <div class="q-gutter-y-md column" style="max-width: 500px">
+                        <q-input type="textarea" standout v-model="description" label="Описание"/>
+                    </div>
+                    <div class="q-gutter-y-md column" style="max-width: 500px">
+                        <q-input filled v-model="startTime" label="Начало">
+                            <template v-slot:prepend>
+                                <q-icon name="event" class="cursor-pointer">
+                                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                        <q-date v-model="startTime" mask="YYYY-MM-DD HH:mm">
+                                            <div class="row items-center justify-end">
+                                                <q-btn v-close-popup label="Close" color="primary" flat></q-btn>
+                                            </div>
+                                        </q-date>
+                                    </q-popup-proxy>
+                                </q-icon>
+                            </template>
+
+                            <template v-slot:append>
+                                <q-icon name="access_time" class="cursor-pointer">
+                                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                        <q-time v-model="startTime" mask="YYYY-MM-DD HH:mm" format24h>
+                                            <div class="row items-center justify-end">
+                                                <q-btn v-close-popup label="Close" color="primary" flat></q-btn>
+                                            </div>
+                                        </q-time>
+                                    </q-popup-proxy>
+                                </q-icon>
+                            </template>
+                        </q-input>
+                    </div>
+                    <div class="q-gutter-y-md column" style="max-width: 500px">
+                        <q-input filled v-model="endTime" label="Конец">
+                            <template v-slot:prepend>
+                                <q-icon name="event" class="cursor-pointer">
+                                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                        <q-date v-model="endTime" mask="YYYY-MM-DD HH:mm">
+                                            <div class="row items-center justify-end">
+                                                <q-btn v-close-popup label="Close" color="primary" flat></q-btn>
+                                            </div>
+                                        </q-date>
+                                    </q-popup-proxy>
+                                </q-icon>
+                            </template>
+
+                            <template v-slot:append>
+                                <q-icon name="access_time" class="cursor-pointer">
+                                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                        <q-time v-model="endTime" mask="YYYY-MM-DD HH:mm" format24h>
+                                            <div class="row items-center justify-end">
+                                                <q-btn v-close-popup label="Close" color="primary" flat></q-btn>
+                                            </div>
+                                        </q-time>
+                                    </q-popup-proxy>
+                                </q-icon>
+                            </template>
+                        </q-input>
+                    </div>
+                    <div class="q-gutter-y-md column" style="max-width: 500px">
+                        <q-select filled multiple v-model="selectedOptions" :options="options"
+                                  label="Участники"></q-select>
+                    </div>
+                    <div>
+                        <q-btn label="Сохранить" type="submit" color="primary"/>
+                    </div>
+                </q-form>
+            </div>
+        </q-page-container>
+
+    </q-layout>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/quasar.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/lang/ru.umd.prod.js"></script>
+
+
+<script>
+
+    const {useQuasar} = Quasar
+
+    var q1
+
+    const app = Vue.createApp({
+        data() {
+            return {
+                userName: "",
+                topic: "",
+                description: "",
+                startTime: "",
+                endTime: "",
+                participants: [],
+                options: [],
+                selectedOptions: []
+            }
+        },
+        methods: {
+            getUserInfo() {
+                var this1 = this
+                fetch("/user")
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Network response was not ok");
+                        }
+                        return response.json();
+                    })
+                    .then((data) => {
+                        this1.userName = data["firstName"] + " " + data["lastName"]
+                    })
+                    .catch((error) => console.error("Fetch error:", error));
+            },
+            getUsersInfo() {
+                let this1 = this
+                fetch("/user/list")
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Network response was not ok");
+                        }
+
+                        return response.json();
+                    })
+                    .then((data) => {
+
+                        for (let i = 0; i < data.length; i++) {
+
+                            data[i].label = data[i].firstName + " " + data[i].lastName
+                        }
+                        this1.options = data
+                    })
+                    .catch((error) => console.error("Fetch error:", error));
+            },
+            logout() {
+                location.href = "/logout"
+            },
+            onSubmit() {
+
+
+                let this1 = this
+
+
+                console.log(this1.selectedOptions)
+
+                let participants = []
+                for (let i = 0; i < this1.selectedOptions.length; i++) {
+                    participants[i] = this1.selectedOptions[i].id
+                }
+
+                fetch("/meeting", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        topic: this1.topic,
+                        description: this1.description,
+                        startTime: this1.startTime.replace(' ', 'T'),
+                        endTime: this1.endTime.replace(' ', 'T'),
+                        participants: participants
+                    }),
+                    headers: {
+                        "Content-type": "application/json; charset=UTF-8"
+                    }
+                })
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Не удалось создать встречу");
+                        }
+
+                        return "";
+                    })
+                    .then((json) => {
+                        q1.notify({
+                            message: 'Создано',
+                            color: 'purple'
+                        })
+                    })
+                    .catch((error) => {
+                        q1.notify({
+                            message: 'Не удалось создать встречу',
+                            color: 'red'
+                        })
+                    });
+
+
+
+            }
+        },
+
+        mounted() {
+            this.getUserInfo()
+            this.getUsersInfo()
+        },
+        setup() {
+            q1 = useQuasar()
+        }
+    })
+    app.use(Quasar, {
+        notify: {
+            /* look at QuasarConfOptions from the API card */
+        },
+    });
+    Quasar.Lang.set(Quasar.Lang.ru)
+    app.mount('#app')
+</script>
+
+</body>
+</html>
