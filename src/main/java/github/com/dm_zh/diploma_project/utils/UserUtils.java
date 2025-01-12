@@ -18,7 +18,7 @@ public class UserUtils {
         userDto.setId(userEntity.getId());
         userDto.setFirstName(userEntity.getFirstName());
         userDto.setLastName(userEntity.getLastName());
-        userDto.setEmail(userEntity.getEmail());
+        userDto.setLogin(userEntity.getLogin());
         return userDto;
     }
 }

@@ -13,6 +13,10 @@ public class AppConfig implements WebMvcConfigurer {
     public void addViewControllers(ViewControllerRegistry registry) {
         registry.addViewController("/").setViewName("forward:/index.html");
         registry.addViewController("/new-meeting").setViewName("forward:/new-meeting.html");
+        registry.addViewController("/join").setViewName("forward:/join.html");
+        registry.addViewController("/join2").setViewName("forward:/join2.html");
+
+
     }
 
     private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {

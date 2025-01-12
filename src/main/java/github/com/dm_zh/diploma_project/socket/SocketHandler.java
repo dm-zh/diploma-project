@@ -12,14 +12,16 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
 public class SocketHandler {
 
   private final SocketIOServer server;
-  private static final Map<String, String> users = new HashMap<>();
+  private static final ConcurrentHashMap<String, String> users = new ConcurrentHashMap<>();
   private static final Map<String, String> rooms = new HashMap<>();
+
 
   public SocketHandler(SocketIOServer server) {
     this.server = server;
@@ -31,7 +33,7 @@ public class SocketHandler {
   public void onConnect(SocketIOClient client) {
     System.out.println("Client connected: " + client.getSessionId());
     String clientId = client.getSessionId().toString();
-    users.put(clientId, null);
+//    users.put(clientId, null);
   }
 
   @OnDisconnect
@@ -48,21 +50,10 @@ public class SocketHandler {
 
   @OnEvent("joinRoom")
   public void onJoinRoom(SocketIOClient client, String room) {
-    int connectedClients = server.getRoomOperations(room).getClients().size();
-    if (connectedClients == 0) {
-      client.joinRoom(room);
-      client.sendEvent("created", room);
-      users.put(client.getSessionId().toString(), room);
-      rooms.put(room, client.getSessionId().toString());
-    } else if (connectedClients > 0) {
-      client.joinRoom(room);
-      client.sendEvent("joined", room);
-      users.put(client.getSessionId().toString(), room);
-      client.sendEvent("setCaller", rooms.get(room));
-    } else {
-      client.sendEvent("full", room);
-    }
-    printLog("onReady", client, room);
+    client.joinRoom(room);
+    users.put(client.getSessionId().toString(), room);
+    client.getNamespace().getRoomOperations(room).sendEvent("joined", room, client.getSessionId().toString());
+    printLog("joinRoom", client, room);
   }
 
   @OnEvent("ready")
@@ -82,7 +73,9 @@ public class SocketHandler {
   public void onOffer(SocketIOClient client, Map<String, Object> payload) {
     String room = (String) payload.get("room");
     Object sdp = payload.get("sdp");
-    client.getNamespace().getRoomOperations(room).sendEvent("offer", sdp);
+    String sessionId = (String) payload.get("sessionId");
+
+    client.getNamespace().getRoomOperations(room).sendEvent("offer", sdp, sessionId);
     printLog("onOffer", client, room);
   }
 
@@ -90,7 +83,9 @@ public class SocketHandler {
   public void onAnswer(SocketIOClient client, Map<String, Object> payload) {
     String room = (String) payload.get("room");
     Object sdp = payload.get("sdp");
-    client.getNamespace().getRoomOperations(room).sendEvent("answer", sdp);
+    String sessionId = (String) payload.get("sessionId");
+
+    client.getNamespace().getRoomOperations(room).sendEvent("answer", sdp, sessionId);
     printLog("onAnswer", client, room);
   }
 

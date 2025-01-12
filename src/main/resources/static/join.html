@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900|Material+Icons" rel="stylesheet"
+          type="text/css">
+    <link href="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/quasar.css" rel="stylesheet" type="text/css">
+    <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css"
+    />
+</head>
+<body>
+<div id="app">
+
+
+    <q-layout view="hHh lpR fFf">
+
+        <q-header elevated class="bg-primary text-white">
+            <q-toolbar>
+                <q-btn href="/">Мои совещания</q-btn>
+                <q-btn href="/new-meeting">Новое совещание</q-btn>
+                <q-space></q-space>
+                <q-btn flat round dense>{{userName + "  "}}</q-btn>
+
+                <q-btn @click="logout">Выйти</q-btn>
+
+            </q-toolbar>
+        </q-header>
+
+        <q-page-container>
+
+            <video :id="'connectedVideos' + connectedVideo" v-for="connectedVideo in connectedVideos"
+                   width="600"
+                   height="500"
+                   autoplay
+                   playsinline
+            ></video>
+
+
+        </q-page-container>
+        <q-page-container>
+
+            <video class="justify-end" id="localVideo"
+                   width="200"
+                   height="130"
+                   autoplay
+                   playsinline
+            ></video>
+
+        </q-page-container>
+        <q-footer elevated>
+            <q-toolbar class="glossy">
+                <div class="full-width row items-center justify-evenly">
+                    <button  @click="toggleVideo" id="toggleVideo" class="btn-circle enabled-style">
+                        <i id="videoIcon" class="bi bi-camera-video-fill"></i>
+                    </button>
+                    <button @click="toggleAudio"  id="toggleAudio" class="btn-circle enabled-style">
+                        <i id="audioIcon" class="bi bi-mic-fill"></i>
+                    </button>
+                </div>
+            </q-toolbar>
+        </q-footer>
+
+
+    </q-layout>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/quasar.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quasar@2.17.6/dist/lang/ru.umd.prod.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script>
+
+
+<script>
+
+    const LOCAL_IP_ADDRESS = window.location.host.split(':')[0];
+    const socket = io.connect(`http://${LOCAL_IP_ADDRESS + ":8000"}`, {secure: false});
+    let localStream;
+    const streamConstraints = {audio: true, video: true};
+    let roomName = new URLSearchParams(document.location.search).get("id")
+
+    const RTCPeerConnectionMap = new Map();
+    const RemoteDescriptionPromiseMap = new Map();
+
+
+    const handleSocketEvent = (eventName, callback) => socket.on(eventName,
+        callback);
+
+
+    handleSocketEvent("joined", (room, sessionId) => {
+
+        if (sessionId === socket.id) {
+            return
+        }
+        console.log("joined event")
+
+        // app2.connectedVideos.push(sessionId)
+        let rtcPeerConnection = new RTCPeerConnection(iceServers);
+
+        RTCPeerConnectionMap.set(sessionId, rtcPeerConnection)
+
+        rtcPeerConnection.onicecandidate = onIceCandidate;
+        rtcPeerConnection.ontrack = onAddStream(socket.id);
+        rtcPeerConnection.addTrack(localStream.getTracks()[0], localStream);
+        rtcPeerConnection.addTrack(localStream.getTracks()[1], localStream);
+        rtcPeerConnection
+            .createOffer()
+            .then(sessionDescription => {
+                rtcPeerConnection.setLocalDescription(sessionDescription);
+                socket.emit("offer", {
+                    type: "offer", sdp: sessionDescription, room: roomName, sessionId: socket.id
+                });
+            })
+            .catch(error => console.log(error));
+    });
+
+    handleSocketEvent("offer", (e, sessionId) => {
+
+        if (sessionId === socket.id) {
+            return
+        }
+
+        console.log("offer event")
+
+
+        let rtcPeerConnection = new RTCPeerConnection(iceServers);
+
+        RTCPeerConnectionMap.set(sessionId, rtcPeerConnection)
+
+        rtcPeerConnection.onicecandidate = onIceCandidate;
+        rtcPeerConnection.ontrack = onAddStream(socket.id);
+        rtcPeerConnection.addTrack(localStream.getTracks()[0], localStream);
+        rtcPeerConnection.addTrack(localStream.getTracks()[1], localStream);
+
+        if (rtcPeerConnection.signalingState === "stable") {
+            let remoteDescriptionPromise = rtcPeerConnection.setRemoteDescription(
+                new RTCSessionDescription(e));
+
+            RemoteDescriptionPromiseMap.set(sessionId, remoteDescriptionPromise)
+
+            remoteDescriptionPromise
+                .then(() => {
+                    return rtcPeerConnection.createAnswer();
+                })
+                .then(sessionDescription => {
+                    rtcPeerConnection.setLocalDescription(sessionDescription);
+                    socket.emit("answer", {
+                        type: "answer", sdp: sessionDescription, room: roomName, sessionId: socket.id
+                    });
+                })
+                .catch(error => console.log(error));
+        }
+    });
+
+    handleSocketEvent("answer", (e, sessionId) => {
+        console.log("answer event")
+
+        if (sessionId !== socket.id && RTCPeerConnectionMap.get(sessionId).signalingState === "have-local-offer") {
+            let remoteDescriptionPromise = RTCPeerConnectionMap.get(sessionId).setRemoteDescription(
+                new RTCSessionDescription(e));
+            remoteDescriptionPromise.catch(error => console.log(error));
+
+            RemoteDescriptionPromiseMap.set(sessionId, remoteDescriptionPromise)
+        }
+    });
+
+
+    //todo
+    handleSocketEvent("candidate", e => {
+        if (RTCPeerConnectionMap.get(e.sessionId)) {
+            const candidate = new RTCIceCandidate({
+                sdpMLineIndex: e.label, candidate: e.candidate,
+            });
+
+            RTCPeerConnectionMap.get(e.sessionId).onicecandidateerror = (error) => {
+                console.error("Error adding ICE candidate: ", error);
+            };
+
+            if (RemoteDescriptionPromiseMap.get(e.sessionId)) {
+                RemoteDescriptionPromiseMap.get(e.sessionId)
+                    .then(() => {
+                        if (candidate != null) {
+                            return RTCPeerConnectionMap.get(e.sessionId).addIceCandidate(candidate);
+                        }
+                    })
+                    .catch(error => console.log(
+                        "Error adding ICE candidate after remote description: ", error));
+            }
+        }
+    });
+
+    const onIceCandidate = e => {
+        if (e.candidate) {
+            console.log("sending ice candidate");
+            socket.emit("candidate", {
+                type: "candidate",
+                label: e.candidate.sdpMLineIndex,
+                id: e.candidate.sdpMid,
+                candidate: e.candidate.candidate,
+                room: roomName,
+                sessionId: socket.id
+            });
+        }
+    }
+
+    const onAddStream = (sessionId) => (e) => {
+        console.log("onAddStream");
+
+        if (app2.connectedVideos.indexOf(sessionId) === -1) {
+            app2.connectedVideos.push(sessionId)
+        }
+
+        // if (e.track.kind === "video"){
+
+
+        let interval = setInterval(function () {
+            let videoElem = document.getElementById("connectedVideos" + sessionId);
+            if (videoElem != null) {
+                videoElem.srcObject = e.streams[0];
+                clearInterval(interval)
+            }
+        }, 100);
+        // }
+
+    };
+
+    // you can use public stun and turn servers,
+    // but we don't need for local development
+    const iceServers = {
+        iceServers: [
+            {urls: `stun:${LOCAL_IP_ADDRESS}:3478`},
+            {
+                urls: `turn:${LOCAL_IP_ADDRESS}:3478`,
+                username: "username",
+                credential: "password"
+            }
+        ]
+    };
+    let app2
+
+    const app = Vue.createApp({
+        data() {
+            return {
+                userName: "",
+                connectedVideos: []
+            }
+        },
+        methods: {
+            getUserInfo() {
+                var this1 = this
+                fetch("/user")
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Network response was not ok");
+                        }
+
+                        return response.json();
+                    })
+                    .then((data) => {
+                        this1.userName = data["firstName"] + " " + data["lastName"]
+                    })
+                    .catch((error) => console.error("Fetch error:", error));
+            },
+            logout() {
+                location.href = "/logout"
+            },
+            showLocalVideo() {
+                navigator.mediaDevices.getUserMedia(streamConstraints).then(stream => {
+                    document.getElementById("localVideo").srcObject = stream;
+                    localStream = stream;
+                }).then(_ => {
+                    //join room
+                    console.log("joining room")
+                    socket.emit("joinRoom", roomName);
+                })
+                    .catch(console.error);
+            },
+            toggleVideo() {
+                const track =  localStream.getVideoTracks()[0]
+                const enabled = !track.enabled;
+                track.enabled = enabled;
+
+                const toggleButton = document.getElementById("toggleVideo");
+                const icon = document.getElementById("videoIcon");
+                toggleButton.classList.toggle("disabled-style", !enabled);
+                toggleButton.classList.toggle("enabled-style", enabled);
+                icon.classList.toggle("bi-camera-video-fill",
+                    enabled);
+                icon.classList.toggle("bi-camera-video-off-fill",
+                    !enabled);
+
+            },
+            toggleAudio() {
+                const track = localStream.getAudioTracks()[0];
+                const enabled = !track.enabled;
+                track.enabled = enabled;
+
+                const toggleButton = document.getElementById("toggleAudio");
+                const icon = document.getElementById("audioIcon");
+                toggleButton.classList.toggle("disabled-style", !enabled);
+                toggleButton.classList.toggle("enabled-style", enabled);
+                icon.classList.toggle("bi-mic-fill", enabled);
+                icon.classList.toggle("bi-mic-mute-fill", !enabled);
+            }
+        },
+        mounted() {
+            app2 = this
+            this.getUserInfo()
+            this.showLocalVideo()
+
+        }
+    })
+    app.use(Quasar);
+    Quasar.Lang.set(Quasar.Lang.ru)
+    app.mount('#app')
+</script>
+
+</body>
+</html>

@@ -37,7 +37,7 @@ public class ServiceImpl implements Service {
 
         userEntity.setFirstName(user.getFirstName());
         userEntity.setLastName(user.getLastName());
-        userEntity.setEmail(user.getEmail());
+        userEntity.setLogin(user.getLogin());
 
         userRepository.save(userEntity);
 
@@ -100,7 +100,6 @@ public class ServiceImpl implements Service {
             userDto.setId(userEntity.getId());
             userDto.setFirstName(userEntity.getFirstName());
             userDto.setLastName(userEntity.getLastName());
-            userDto.setEmail(userEntity.getEmail());
             return userDto;
         }).toList();
     }
