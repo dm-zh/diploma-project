@@ -7,6 +7,7 @@ import github.com.dm_zh.diploma_project.service.Service;
 import github.com.dm_zh.diploma_project.utils.UserUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +28,8 @@ public class UserController {
     public static final ConcurrentHashMap<String, String> sessionUserMap = new ConcurrentHashMap<>();
 
     @GetMapping
+    @PreAuthorize("hasRole('video_call_app')")
     public UserDto getUser(HttpServletRequest request) {
-
         sessionUserMap.put(request.getSession().getId(),  UserUtils.getCurrentUserId());
 
         UserDto userDto = new UserDto();
@@ -44,6 +45,7 @@ public class UserController {
         return userDto;
     }
 
+    @PreAuthorize("hasRole('video_call_app')")
     @GetMapping("/list")
     public List<UserDto> getUsers() {
         return service.getAllUsers();

@@ -10,9 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Entity
 @Table(name = "meeting")
@@ -37,6 +35,12 @@ public class MeetingEntity {
 
     @NotNull
     private LocalDateTime endTime;
+
+    @Column(columnDefinition = "TEXT")
+    private String protocol;
+
+    @Column(columnDefinition = "TEXT")
+    private String video;
 
     @ManyToOne
     @JoinColumn(name="creator_id", nullable=false)

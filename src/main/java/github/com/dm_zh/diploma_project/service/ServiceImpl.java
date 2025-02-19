@@ -9,18 +9,22 @@ import github.com.dm_zh.diploma_project.entity.UserEntity;
 import github.com.dm_zh.diploma_project.repository.MeetingRepository;
 import github.com.dm_zh.diploma_project.repository.UserRepository;
 import github.com.dm_zh.diploma_project.utils.UserUtils;
+import io.minio.BucketExistsArgs;
+import io.minio.MakeBucketArgs;
+import io.minio.MinioClient;
+import io.minio.PutObjectArgs;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Stream;
 
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
@@ -28,6 +32,7 @@ public class ServiceImpl implements Service {
 
     private final UserRepository userRepository;
     private final MeetingRepository meetingRepository;
+    private final MinioClient minioClient;
 
     @Override
     @Transactional
@@ -119,17 +124,19 @@ public class ServiceImpl implements Service {
             meetingDto.setEndTime(meetingEntity.getEndTime());
             meetingDto.setTopic(meetingEntity.getTopic());
             meetingDto.setDescription(meetingEntity.getDescription());
+            if(meetingEntity.getProtocol() != null){
+                meetingDto.setHasProtocol(true);
+            }
+            meetingDto.setVideo(meetingEntity.getVideo());
             for (UserEntity participant : meetingEntity.getParticipants()) {
                 meetingDto.getParticipants().add(UserUtils.mapUserEntityToDto(participant));
             }
 
-            if (meetingDto.getEndTime().isBefore(now)){
+            if (meetingDto.getEndTime().isBefore(now)) {
                 answer.getOld().add(meetingDto);
-            }
-            else if(meetingDto.getStartTime().isAfter(now)){
+            } else if (meetingDto.getStartTime().isAfter(now)) {
                 answer.getFuture().add(meetingDto);
-            }
-            else {
+            } else {
                 answer.getCurrent().add(meetingDto);
             }
 
@@ -148,4 +155,58 @@ public class ServiceImpl implements Service {
         }
     }
 
+
+    @Override
+    @Transactional
+    public void validateOwnerOrParticipant(int meetingId) {
+        MeetingEntity meetingEntity = meetingRepository.findById(meetingId).orElseThrow();
+
+        String userId = UserUtils.getCurrentUserId();
+        if (Objects.equals(meetingEntity.getCreator().getId(), userId)) {
+            return;
+        }
+
+        for (UserEntity participant : meetingEntity.getParticipants()) {
+            if (Objects.equals(participant.getId(), userId)) {
+                return;
+            }
+        }
+
+
+        throw new SecurityException();
+    }
+
+    @Override
+    public void addProtocolToMeeting(int id, String protocol) {
+        MeetingEntity meetingEntity = meetingRepository.findById(id).orElseThrow();
+        meetingEntity.setProtocol(protocol);
+        meetingRepository.save(meetingEntity);
+    }
+
+    @Override
+    public String getProtocol(int meetingId) {
+        MeetingEntity meetingEntity = meetingRepository.findById(meetingId).orElseThrow();
+        return meetingEntity.getProtocol();
+    }
+
+    private final static String BUCKET = "video";
+
+    @Override
+    @SneakyThrows
+    public void uploadVideo(int id, MultipartFile file) {
+        boolean found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(BUCKET).build());
+        if (!found) {
+            minioClient.makeBucket(MakeBucketArgs.builder().bucket(BUCKET).build());
+        }
+
+        minioClient.putObject(
+                PutObjectArgs.builder().bucket(BUCKET).object(String.valueOf(id)).stream(
+                                file.getInputStream(), file.getInputStream().available(), -1)
+                        .contentType(file.getContentType())
+                        .build());
+        MeetingEntity meetingEntity = meetingRepository.findById(id).orElseThrow();
+        meetingEntity.setVideo("/" + id);
+        meetingRepository.save(meetingEntity);
+
+    }
 }

@@ -91,6 +91,11 @@
 			<artifactId>netty-socketio</artifactId>
 			<version>1.7.23</version>
 		</dependency>
+		<dependency>
+			<groupId>io.minio</groupId>
+			<artifactId>minio</artifactId>
+			<version>RELEASE</version>
+		</dependency>
 	</dependencies>
 
 	<build>

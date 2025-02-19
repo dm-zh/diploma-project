@@ -148,7 +148,15 @@
                                                     {{ formatUsers(props.row.participants) }}
                                                 </q-td>
                                                 <q-td key="ref" :props="props">
+                                                    <div>
                                                     <a v-bind:href="'/join?id='+ props.row.id">Присоединиться</a>
+                                                    </div>
+                                                    <div>
+                                                    <a v-if="props.row.hasProtocol" v-bind:href="'/meeting/'+ props.row.id + '/protocol'">Протокол</a>
+                                                    </div>
+                                                    <div>
+                                                        <a v-if="props.row.video != null" v-bind:href="'http://localhost:9000/video/'+ props.row.id">Запись</a>
+                                                    </div>
                                                 </q-td>
                                             </q-tr>
                                         </template>

@@ -30,7 +30,21 @@
 
         <q-page-container>
 
-            <video :id="'connectedVideos' + connectedVideo" v-for="connectedVideo in connectedVideos"
+<!--            <video :id="'connectedVideos' + connectedVideo" v-for="connectedVideo in connectedVideos"-->
+<!--                   width="600"-->
+<!--                   height="500"-->
+<!--                   autoplay-->
+<!--                   playsinline-->
+<!--            ></video>-->
+
+            <video :id="'connectedVideos' + user1id"  v-if="user1id != null"
+                   width="600"
+                   height="500"
+                   autoplay
+                   playsinline
+            ></video>
+
+            <video :id="'connectedVideos' + user2id" v-if="user2id != null"
                    width="600"
                    height="500"
                    autoplay
@@ -41,12 +55,22 @@
         </q-page-container>
         <q-page-container>
 
-            <video class="justify-end" id="localVideo"
-                   width="200"
-                   height="130"
-                   autoplay
-                   playsinline
-            ></video>
+
+
+            <div class="row">
+                <div class="col">
+                    <video class="justify-end" id="localVideo"
+                           width="200"
+                           height="130"
+                           autoplay
+                           playsinline
+                    ></video>
+                </div>
+                <div class="col">
+                    <q-input type="textarea" standout v-model="protocol" label="Протокол совещания"/>
+                </div>
+            </div>
+
 
         </q-page-container>
         <q-footer elevated>
@@ -57,6 +81,9 @@
                     </button>
                     <button @click="toggleAudio"  id="toggleAudio" class="btn-circle enabled-style">
                         <i id="audioIcon" class="bi bi-mic-fill"></i>
+                    </button>
+                    <button @click="recordVideo"  id="recordVideo" class="btn-circle enabled-style">
+                        <i id="recordIcon" class="bi bi-record-btn"></i>
                     </button>
                 </div>
             </q-toolbar>
@@ -84,6 +111,10 @@
     const RTCPeerConnectionMap = new Map();
     const RemoteDescriptionPromiseMap = new Map();
 
+    let blob, mediaRecorder = null;
+    let chunks = [];
+
+
 
     const handleSocketEvent = (eventName, callback) => socket.on(eventName,
         callback);
@@ -102,7 +133,7 @@
         RTCPeerConnectionMap.set(sessionId, rtcPeerConnection)
 
         rtcPeerConnection.onicecandidate = onIceCandidate;
-        rtcPeerConnection.ontrack = onAddStream(socket.id);
+        rtcPeerConnection.ontrack = onAddStream(sessionId);
         rtcPeerConnection.addTrack(localStream.getTracks()[0], localStream);
         rtcPeerConnection.addTrack(localStream.getTracks()[1], localStream);
         rtcPeerConnection
@@ -130,7 +161,7 @@
         RTCPeerConnectionMap.set(sessionId, rtcPeerConnection)
 
         rtcPeerConnection.onicecandidate = onIceCandidate;
-        rtcPeerConnection.ontrack = onAddStream(socket.id);
+        rtcPeerConnection.ontrack = onAddStream(sessionId);
         rtcPeerConnection.addTrack(localStream.getTracks()[0], localStream);
         rtcPeerConnection.addTrack(localStream.getTracks()[1], localStream);
 
@@ -244,7 +275,13 @@
         data() {
             return {
                 userName: "",
-                connectedVideos: []
+                connectedVideos: [],
+                protocol: "",
+                debounceProtocolTimeout: null,
+                videoRecorded: false,
+                user1id: null,
+                user2id: null,
+
             }
         },
         methods: {
@@ -303,6 +340,91 @@
                 toggleButton.classList.toggle("enabled-style", enabled);
                 icon.classList.toggle("bi-mic-fill", enabled);
                 icon.classList.toggle("bi-mic-mute-fill", !enabled);
+            },
+            saveProtocol(){
+                let this1 = this
+                console.log(this.protocol)
+                fetch("/meeting/" + roomName + "/protocol", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        protocol: this1.protocol
+                    }),
+                    headers: {
+                        "Content-type": "application/json; charset=UTF-8"
+                    }
+                })
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error("Не удалось сохранить протокол");
+                        }
+
+                        return "";
+                    })
+                    .catch((error) => {
+                      console.log(error)
+                    });
+            },
+            async recordVideo(){
+
+                if(!this.videoRecorded){
+                    console.log("recording")
+                    this.videoRecorded = true
+                    let stream =  await navigator.mediaDevices.getDisplayMedia(
+                        {video: {mediaSource: "screen"}, audio: true}
+                    );
+
+                     mediaRecorder = new MediaRecorder(stream, {mimeType: "video/webm"});
+
+                    mediaRecorder.ondataavailable = (e) => {
+                        if(e.data.size > 0){
+                            chunks.push(e.data);
+                        }
+                    }
+                    mediaRecorder.onstop = () => {
+                        chunks = [];
+                    }
+                    mediaRecorder.start(250)
+                }
+                else if(this.videoRecorded){
+                    console.log("saving")
+                    this.videoRecorded = false
+                    mediaRecorder.stop();
+                    blob = new Blob(chunks, {type: "video/webm"})
+                    chunks = [] // Resetting the data chunks
+
+                    // let dataDownloadUrl = URL.createObjectURL(blob);
+                    //
+                    // // Downloadin it onto the user's device
+                    // let a = document.createElement('a')
+                    // a.href = dataDownloadUrl;
+                    // a.download = `2234.webm`
+                    // a.click()
+                    //
+                    // URL.revokeObjectURL(dataDownloadUrl)
+
+                    const formData = new FormData();
+                    formData.append("file", blob, "video.webm");
+
+                    fetch("/meeting/" + roomName + "/video", {
+                        method: "POST",
+                        body: formData,
+                        headers: {
+                            // В случае multipart/form-data, заголовок Content-Type выставляется автоматически
+                        },
+                    })
+                        .then((response) => {
+                            if (!response.ok) {
+                                throw new Error(`Ошибка загрузки: ${response.statusText}`);
+                            }
+                            return response.json();
+                        })
+                        .then((data) => {
+                            console.log("Файл успешно загружен:", data);
+                        })
+                        .catch((error) => {
+                            console.error("Ошибка при загрузке файла:", error);
+                        });
+                }
             }
         },
         mounted() {
@@ -310,7 +432,16 @@
             this.getUserInfo()
             this.showLocalVideo()
 
-        }
+        },
+        watch: {
+            protocol(newValue, oldValue) {
+                clearTimeout(this.debounceTimeout);
+
+                this.debounceTimeout = setTimeout(() => {
+                    this.saveProtocol();
+                }, 3000);
+            },
+        },
     })
     app.use(Quasar);
     Quasar.Lang.set(Quasar.Lang.ru)

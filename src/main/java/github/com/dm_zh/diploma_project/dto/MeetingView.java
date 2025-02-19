@@ -22,5 +22,9 @@ public class MeetingView {
 
     private LocalDateTime endTime;
 
+    private boolean hasProtocol;
+
+    private String video;
+
     private Set<UserDto> participants = new HashSet<>();
 }

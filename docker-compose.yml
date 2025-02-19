@@ -46,5 +46,25 @@ services:
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: password
 
+  minio:
+    image: docker.io/bitnami/minio:2022
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    networks:
+      - minionetwork
+    volumes:
+      - 'minio_data:/data'
+    environment:
+      - MINIO_ROOT_USER=user
+      - MINIO_ROOT_PASSWORD=password
+      - MINIO_DEFAULT_BUCKETS=video
+
+networks:
+  minionetwork:
+    driver: bridge
+
 volumes:
   postgres_data:
+  minio_data:
+    driver: local
