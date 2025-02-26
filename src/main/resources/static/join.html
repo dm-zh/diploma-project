@@ -30,26 +30,26 @@
 
         <q-page-container>
 
-<!--            <video :id="'connectedVideos' + connectedVideo" v-for="connectedVideo in connectedVideos"-->
+            <video :id="'connectedVideos' + connectedVideo" v-for="connectedVideo in connectedVideos"
+                   width="600"
+                   height="500"
+                   autoplay
+                   playsinline
+            ></video>
+
+<!--            <video :id="'connectedVideos' + user1id"  v-if="user1id != null"-->
 <!--                   width="600"-->
 <!--                   height="500"-->
 <!--                   autoplay-->
 <!--                   playsinline-->
 <!--            ></video>-->
 
-            <video :id="'connectedVideos' + user1id"  v-if="user1id != null"
-                   width="600"
-                   height="500"
-                   autoplay
-                   playsinline
-            ></video>
-
-            <video :id="'connectedVideos' + user2id" v-if="user2id != null"
-                   width="600"
-                   height="500"
-                   autoplay
-                   playsinline
-            ></video>
+<!--            <video :id="'connectedVideos' + user2id" v-if="user2id != null"-->
+<!--                   width="600"-->
+<!--                   height="500"-->
+<!--                   autoplay-->
+<!--                   playsinline-->
+<!--            ></video>-->
 
 
         </q-page-container>
@@ -252,7 +252,7 @@
                 videoElem.srcObject = e.streams[0];
                 clearInterval(interval)
             }
-        }, 100);
+        }, 2000);
         // }
 
     };
