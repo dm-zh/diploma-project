@@ -60,6 +60,16 @@ services:
       - MINIO_ROOT_PASSWORD=password
       - MINIO_DEFAULT_BUCKETS=video
 
+#  app:
+#    image: hopheilalalei/diploma:1
+##    ports:
+##      - "8081:8081"
+#    network_mode: "host"
+#    environment:
+#      - POSTGRES_PASSWORD=password
+#      - POSTGRES_USER=user
+#      - POSTGRES_DB=db
+
 networks:
   minionetwork:
     driver: bridge
